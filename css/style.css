@@ -80,6 +80,11 @@ img {
   display: block;
 }
 
+iframe {
+  max-width: 100%;
+  width: 100%;
+}
+
 a {
   color: var(--color-accent);
   text-decoration: none;
@@ -1572,11 +1577,13 @@ p {
    ======================================== */
 .info-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   background: var(--color-white);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  table-layout: fixed;
 }
 
 .info-table th,
@@ -2566,7 +2573,8 @@ p {
   }
 
   /* Hide is-hidden items in mobile menu */
-  .nav__list li.is-hidden {
+  .nav__list li.is-hidden,
+  .nav__list li a.is-hidden {
     display: none !important;
   }
 
@@ -2823,6 +2831,7 @@ p {
   .info-table td {
     display: block;
     width: 100%;
+    white-space: normal !important;
   }
   
   .info-table th {
