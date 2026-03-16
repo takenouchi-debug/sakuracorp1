@@ -53,7 +53,7 @@ Allow: /
 
 #### サイトマップの場所：
 ```txt
-Sitemap: https://www.sakura-tokai.co.jp/sitemap.xml
+Sitemap: https://www.sakuratokaicorp.jp/sitemap.xml
 ```
 
 ---
@@ -77,10 +77,10 @@ SNSでシェアされた際の表示を最適化：
 
 ```html
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.sakura-tokai.co.jp/xxx.html">
+<meta property="og:url" content="https://www.sakuratokaicorp.jp/xxx.html">
 <meta property="og:title" content="...">
 <meta property="og:description" content="...">
-<meta property="og:image" content="https://www.sakura-tokai.co.jp/images/sakuralogo3.png">
+<meta property="og:image" content="https://www.sakuratokaicorp.jp/images/sakuralogo3.png">
 <meta property="og:site_name" content="株式会社SAKURA東海コーポレーション">
 <meta property="og:locale" content="ja_JP">
 ```
@@ -93,7 +93,7 @@ Twitter/X でのシェアを最適化：
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="...">
 <meta name="twitter:description" content="...">
-<meta name="twitter:image" content="https://www.sakura-tokai.co.jp/images/sakuralogo3.png">
+<meta name="twitter:image" content="https://www.sakuratokaicorp.jp/images/sakuralogo3.png">
 ```
 
 #### Canonical URL
@@ -101,7 +101,7 @@ Twitter/X でのシェアを最適化：
 重複コンテンツを防ぐための正規URL指定：
 
 ```html
-<link rel="canonical" href="https://www.sakura-tokai.co.jp/xxx.html">
+<link rel="canonical" href="https://www.sakuratokaicorp.jp/xxx.html">
 ```
 
 #### Favicon
@@ -127,8 +127,8 @@ Twitter/X でのシェアを最適化：
 
 アップロード後、以下のURLでアクセスできることを確認：
 
-- https://www.sakura-tokai.co.jp/sitemap.xml
-- https://www.sakura-tokai.co.jp/robots.txt
+- https://www.sakuratokaicorp.jp/sitemap.xml
+- https://www.sakuratokaicorp.jp/robots.txt
 
 ---
 
@@ -138,7 +138,7 @@ Twitter/X でのシェアを最適化：
 
 1. [Google Search Console](https://search.google.com/search-console) にログイン
 2. 左メニューから「サイトマップ」を選択
-3. 新しいサイトマップを追加：`https://www.sakura-tokai.co.jp/sitemap.xml`
+3. 新しいサイトマップを追加：`https://www.sakuratokaicorp.jp/sitemap.xml`
 4. 「送信」をクリック
 
 ### 2. インデックス登録のリクエスト
@@ -213,7 +213,7 @@ Twitter/X でのシェアを最適化：
 
 ### ドメインについて
 
-このドキュメントでは `https://www.sakura-tokai.co.jp/` を例として使用していますが、実際のドメインが異なる場合は、以下のファイルを修正してください：
+このドキュメントでは `https://www.sakuratokaicorp.jp/` を例として使用していますが、実際のドメインが異なる場合は、以下のファイルを修正してください：
 
 - `sitemap.xml` の各`<loc>`タグ内のURL
 - 全HTMLファイルのOGPタグ（`og:url`、`og:image`）
