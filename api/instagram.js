@@ -82,9 +82,49 @@ async function getInstagramBusinessAccountId(token) {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
+  res.setHeader('Cache-Control', 'no-store');
 
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+  // #region agent log — debug mode: ?debug=1 で詳細診断を返す
+  if (req.query.debug === '1') {
+    const diag = { sessionId: 'b28977', timestamp: Date.now() };
+    diag.tokenPresent = !!token;
+    diag.tokenPrefix = token ? token.slice(0, 10) + '...' : null;
+    diag.tokenLength = token ? token.length : 0;
+    diag.fbAppIdSet = !!process.env.FB_APP_ID;
+    diag.fbAppSecretSet = !!process.env.FB_APP_SECRET;
+
+    try {
+      // H1: /me/accounts の生レスポンス（権限不足チェック）
+      const pagesRaw = await httpsGet(`${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${token}`);
+      diag.h1_meAccounts = pagesRaw;
+
+      // H2: /me の生レスポンス（トークン種別チェック）
+      const meRaw = await httpsGet(`${API_BASE}/me?fields=id,name&access_token=${token}`);
+      diag.h2_me = meRaw;
+
+      // H3: /app の生レスポンス（アプリモードチェック）
+      const appRaw = await httpsGet(`${API_BASE}/app?access_token=${token}`);
+      diag.h3_app = appRaw;
+
+      // H5: refreshToken 結果
+      const refreshed = await refreshToken(token);
+      diag.h5_refreshChanged = (refreshed !== token);
+      diag.h5_refreshedPrefix = refreshed ? refreshed.slice(0, 10) + '...' : null;
+
+      // refreshed token で再試行
+      if (refreshed !== token) {
+        const pagesRefreshed = await httpsGet(`${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${refreshed}`);
+        diag.h5_meAccountsAfterRefresh = pagesRefreshed;
+      }
+    } catch (e) {
+      diag.diagError = e.message;
+    }
+
+    return res.status(200).json({ debug: true, diag });
+  }
+  // #endregion
 
   if (!token) {
     return res.status(500).json({
