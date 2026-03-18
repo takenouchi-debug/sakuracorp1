@@ -35,100 +35,79 @@ async function refreshToken(token) {
 }
 
 async function getInstagramBusinessAccountId(token) {
+  // 環境変数で直接指定されていればスキップ
+  if (process.env.IG_BUSINESS_ACCOUNT_ID) {
+    return process.env.IG_BUSINESS_ACCOUNT_ID;
+  }
+
+  // FB_PAGE_ID が設定されていれば、そこから直接取得
+  if (process.env.FB_PAGE_ID) {
+    const pageUrl = `${API_BASE}/${process.env.FB_PAGE_ID}?fields=instagram_business_account&access_token=${token}`;
+    const pageData = await httpsGet(pageUrl);
+    if (pageData.error) {
+      throw new Error(`FB_PAGE_ID(${process.env.FB_PAGE_ID})からの取得エラー: ${pageData.error.message}`);
+    }
+    if (pageData.instagram_business_account && pageData.instagram_business_account.id) {
+      return pageData.instagram_business_account.id;
+    }
+    throw new Error(`FB_PAGE_ID(${process.env.FB_PAGE_ID})にInstagramビジネスアカウントが紐づいていません。`);
+  }
+
+  // 自動検出: /me/accounts
   const pagesUrl = `${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${token}`;
   const pagesData = await httpsGet(pagesUrl);
 
   if (pagesData.error) {
-    const code = pagesData.error.code || 'unknown';
-    const type = pagesData.error.type || 'unknown';
-    throw new Error(`Facebook API error (code ${code}, type ${type}): ${pagesData.error.message}`);
+    throw new Error(`Facebook API error (code ${pagesData.error.code}): ${pagesData.error.message}`);
   }
 
   if (!pagesData.data || pagesData.data.length === 0) {
-    const tokenCheck = await httpsGet(`${API_BASE}/me?fields=id,name&access_token=${token}`);
-    if (tokenCheck.error) {
-      throw new Error(
-        'トークンが無効です。Graph API Explorer で pages_show_list, pages_read_engagement, instagram_basic の権限を付与した新しいユーザートークンを発行してください。' +
-        ` (FB error: ${tokenCheck.error.message})`
-      );
-    }
     throw new Error(
-      `トークンは有効ですが、管理しているFacebookページが見つかりません (user: ${tokenCheck.name || tokenCheck.id})。` +
-      'FacebookページにInstagramビジネスアカウントを紐づけ、pages_show_list 権限を付与してください。'
+      'Facebookページが見つかりません。解決方法: ' +
+      '(1) Graph API Explorer で pages_show_list 権限を付与してトークンを再発行するか、' +
+      '(2) Vercel環境変数に IG_BUSINESS_ACCOUNT_ID を直接設定してください。'
     );
   }
 
-  const pagesWithIg = [];
-  const pagesWithoutIg = [];
   for (const page of pagesData.data) {
     if (page.instagram_business_account && page.instagram_business_account.id) {
-      pagesWithIg.push(page);
-    } else {
-      pagesWithoutIg.push(page.name || page.id);
+      return page.instagram_business_account.id;
     }
   }
 
-  if (pagesWithIg.length > 0) {
-    return pagesWithIg[0].instagram_business_account.id;
-  }
-
   throw new Error(
-    `Facebookページは ${pagesData.data.length} 件見つかりましたが、Instagramビジネスアカウントが紐づいていません。` +
-    `ページ: ${pagesWithoutIg.join(', ')}。` +
-    'Facebookページ設定 → Instagram → アカウントをリンク を確認してください。'
+    `Facebookページ(${pagesData.data.map(p => p.name || p.id).join(', ')})にInstagramビジネスアカウントが紐づいていません。`
   );
 }
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=150');
 
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
 
-  // #region agent log — debug mode: ?debug=1 で詳細診断を返す
+  // #region agent log — ?debug=1 で診断
   if (req.query.debug === '1') {
-    const diag = { sessionId: 'b28977', timestamp: Date.now() };
-    diag.tokenPresent = !!token;
-    diag.tokenPrefix = token ? token.slice(0, 10) + '...' : null;
-    diag.tokenLength = token ? token.length : 0;
-    diag.fbAppIdSet = !!process.env.FB_APP_ID;
-    diag.fbAppSecretSet = !!process.env.FB_APP_SECRET;
-
+    const d = { ts: Date.now(), sid: 'b28977' };
+    d.tokenSet = !!token;
+    d.tokenLen = token ? token.length : 0;
+    d.tokenPre = token ? token.slice(0, 8) + '...' : null;
+    d.fbAppIdSet = !!process.env.FB_APP_ID;
+    d.fbSecretSet = !!process.env.FB_APP_SECRET;
+    d.igIdEnv = process.env.IG_BUSINESS_ACCOUNT_ID || null;
+    d.fbPageIdEnv = process.env.FB_PAGE_ID || null;
     try {
-      // H1: /me/accounts の生レスポンス（権限不足チェック）
-      const pagesRaw = await httpsGet(`${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${token}`);
-      diag.h1_meAccounts = pagesRaw;
-
-      // H2: /me の生レスポンス（トークン種別チェック）
-      const meRaw = await httpsGet(`${API_BASE}/me?fields=id,name&access_token=${token}`);
-      diag.h2_me = meRaw;
-
-      // H3: /app の生レスポンス（アプリモードチェック）
-      const appRaw = await httpsGet(`${API_BASE}/app?access_token=${token}`);
-      diag.h3_app = appRaw;
-
-      // H5: refreshToken 結果
-      const refreshed = await refreshToken(token);
-      diag.h5_refreshChanged = (refreshed !== token);
-      diag.h5_refreshedPrefix = refreshed ? refreshed.slice(0, 10) + '...' : null;
-
-      // refreshed token で再試行
-      if (refreshed !== token) {
-        const pagesRefreshed = await httpsGet(`${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${refreshed}`);
-        diag.h5_meAccountsAfterRefresh = pagesRefreshed;
-      }
-    } catch (e) {
-      diag.diagError = e.message;
-    }
-
-    return res.status(200).json({ debug: true, diag });
+      d.meAccounts = await httpsGet(`${API_BASE}/me/accounts?fields=id,name,instagram_business_account&access_token=${token}`);
+      d.me = await httpsGet(`${API_BASE}/me?fields=id,name&access_token=${token}`);
+    } catch (e) { d.err = e.message; }
+    return res.status(200).json({ debug: true, d });
   }
   // #endregion
 
   if (!token) {
     return res.status(500).json({
-      error: 'INSTAGRAM_ACCESS_TOKEN が設定されていません。Vercel の環境変数を確認してください。'
+      error: 'INSTAGRAM_ACCESS_TOKEN が未設定です。'
     });
   }
 
@@ -142,9 +121,7 @@ module.exports = async (req, res) => {
 
     if (mediaData.error) {
       console.error('Instagram media API error:', mediaData.error);
-      return res.status(400).json({
-        error: `メディア取得エラー: ${mediaData.error.message}`
-      });
+      return res.status(400).json({ error: mediaData.error.message });
     }
 
     const posts = (mediaData.data || []).map(post => ({
